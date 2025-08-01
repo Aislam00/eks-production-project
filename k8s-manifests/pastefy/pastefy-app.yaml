@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pastefy-app
+  namespace: production
+  labels:
+    app: pastefy-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pastefy-app
+  template:
+    metadata:
+      labels:
+        app: pastefy-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "80"
+    spec:
+      containers:
+      - name: pastefy
+        image: interaapps/pastefy:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: DB_HOST
+          value: pastefy-mariadb
+        - name: DB_PORT
+          value: "3306"
+        - name: DB_NAME
+          value: pastefy
+        - name: DB_USER
+          value: pastefy
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pastefy-secrets
+              key: mysql-password
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "300m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 90
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 60
+          periodSeconds: 5
+        startupProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 18
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pastefy-app
+  namespace: production
+  labels:
+    app: pastefy-app
+spec:
+  type: LoadBalancer
+  selector:
+    app: pastefy-app
+  ports:
+  - port: 80
+    targetPort: 80
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pastefy-hpa
+  namespace: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pastefy-app
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
