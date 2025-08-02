@@ -73,3 +73,43 @@ module "eks" {
 
   depends_on = [module.vpc]
 }
+
+resource "aws_route53_zone" "main" {
+  name = "integratepro.online"
+  tags = local.common_tags
+}
+
+module "external_dns" {
+  source = "../../modules/external-dns"
+  
+  cluster_name      = module.eks.cluster_name
+  route53_zone_id   = aws_route53_zone.main.zone_id
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider     = replace(module.eks.oidc_issuer_url, "https://", "")
+  
+  tags = local.common_tags
+}
+
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+  
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+  }
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+    
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+    }
+  }
+}
