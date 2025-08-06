@@ -1,25 +1,26 @@
 variable "aws_region" {
   description = "AWS region"
   type        = string
-  default     = "eu-west-2"
 }
 
 variable "project_name" {
   description = "Name of the project"
   type        = string
-  default     = "eks-production"
 }
 
 variable "environment" {
   description = "Environment name"
   type        = string
-  default     = "dev"
+}
+
+variable "owner" {
+  description = "Owner of the resources"
+  type        = string
 }
 
 variable "domain_name" {
   description = "Domain name for the project"
   type        = string
-  default     = "integratepro.online"
 }
 
 variable "cluster_version" {
@@ -74,12 +75,6 @@ variable "single_nat_gateway" {
   description = "Use a single NAT Gateway instead of one per AZ"
   type        = bool
   default     = true
-}
-
-variable "owner" {
-  description = "Owner of the resources"
-  type        = string
-  default     = "DevOpsTeam"
 }
 
 variable "public_subnet_count" {

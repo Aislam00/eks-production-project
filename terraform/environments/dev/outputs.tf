@@ -1,65 +1,96 @@
-output "cluster_id" {
-  description = "EKS cluster ID"
-  value       = module.eks.cluster_id
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
 }
 
-output "cluster_arn" {
-  description = "EKS cluster ARN"
-  value       = module.eks.cluster_arn
+variable "project_name" {
+  description = "Name of the project"
+  type        = string
 }
 
-output "cluster_endpoint" {
-  description = "EKS cluster endpoint"
-  value       = module.eks.cluster_endpoint
-  sensitive   = true
+variable "environment" {
+  description = "Environment name"
+  type        = string
 }
 
-output "cluster_name" {
-  description = "EKS cluster name"
-  value       = module.eks.cluster_name
+variable "owner" {
+  description = "Owner of the resources"
+  type        = string
 }
 
-output "cluster_security_group_id" {
-  description = "Security group ID attached to the EKS cluster"
-  value       = module.eks.cluster_security_group_id
+variable "domain_name" {
+  description = "Domain name for the project"
+  type        = string
 }
 
-output "vpc_id" {
-  description = "ID of the VPC"
-  value       = module.vpc.vpc_id
+variable "cluster_version" {
+  description = "Kubernetes cluster version"
+  type        = string
+  default     = "1.28"
 }
 
-output "private_subnet_ids" {
-  description = "IDs of the private subnets"
-  value       = module.vpc.private_subnet_ids
+variable "node_instance_types" {
+  description = "EC2 instance types for EKS worker nodes"
+  type        = list(string)
+  default     = ["t3.small"]
 }
 
-output "public_subnet_ids" {
-  description = "IDs of the public subnets"
-  value       = module.vpc.public_subnet_ids
+variable "node_desired_capacity" {
+  description = "Desired number of worker nodes"
+  type        = number
+  default     = 1
 }
 
-output "route53_zone_id" {
-  description = "Route53 hosted zone ID"
-  value       = aws_route53_zone.main.zone_id
+variable "node_max_capacity" {
+  description = "Maximum number of worker nodes"
+  type        = number
+  default     = 3
 }
 
-output "route53_nameservers" {
-  description = "Route53 nameservers"
-  value       = aws_route53_zone.main.name_servers
+variable "node_min_capacity" {
+  description = "Minimum number of worker nodes"
+  type        = number
+  default     = 1
 }
 
-output "external_dns_role_arn" {
-  description = "ExternalDNS IAM role ARN"
-  value       = module.external_dns.iam_role_arn
+variable "node_disk_size" {
+  description = "Disk size for worker nodes in GB"
+  type        = number
+  default     = 20
 }
 
-output "aws_load_balancer_controller_role_arn" {
-  description = "ARN of the AWS Load Balancer Controller IAM role"
-  value       = module.eks.aws_load_balancer_controller_role_arn
+variable "vpc_cidr" {
+  description = "CIDR block for VPC"
+  type        = string
+  default     = "10.0.0.0/16"
 }
 
-output "oidc_provider_arn" {
-  description = "ARN of the OIDC Provider for EKS cluster"
-  value       = module.eks.oidc_provider_arn
+variable "availability_zones" {
+  description = "List of availability zones"
+  type        = list(string)
+  default     = ["eu-west-2a", "eu-west-2b", "eu-west-2c"]
+}
+
+variable "single_nat_gateway" {
+  description = "Use a single NAT Gateway instead of one per AZ"
+  type        = bool
+  default     = true
+}
+
+variable "public_subnet_count" {
+  description = "Number of public subnets"
+  type        = number
+  default     = 2
+}
+
+variable "private_subnet_count" {
+  description = "Number of private subnets"
+  type        = number
+  default     = 2
+}
+
+variable "enable_nat_gateway" {
+  description = "Enable NAT Gateway for private subnets"
+  type        = bool
+  default     = true
 }
