@@ -1,10 +1,8 @@
 data "aws_region" "current" {}
-
 data "aws_caller_identity" "current" {}
 
 resource "aws_iam_role" "cluster" {
   name = "${var.cluster_name}-cluster-role"
-
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -17,7 +15,6 @@ resource "aws_iam_role" "cluster" {
       }
     ]
   })
-
   tags = var.tags
 }
 
@@ -28,7 +25,6 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
 
 resource "aws_iam_role" "node_group" {
   name = "${var.cluster_name}-node-group-role"
-
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -41,7 +37,6 @@ resource "aws_iam_role" "node_group" {
       }
     ]
   })
-
   tags = var.tags
 }
 
@@ -63,7 +58,6 @@ resource "aws_iam_role_policy_attachment" "node_group_AmazonEC2ContainerRegistry
 resource "aws_security_group" "cluster" {
   name_prefix = "${var.cluster_name}-cluster-sg"
   vpc_id      = var.vpc_id
-  description = "Security group for EKS cluster control plane"
 
   egress {
     from_port   = 0
@@ -80,7 +74,6 @@ resource "aws_security_group" "cluster" {
 resource "aws_security_group" "node_group" {
   name_prefix = "${var.cluster_name}-node-sg"
   vpc_id      = var.vpc_id
-  description = "Security group for EKS node group"
 
   ingress {
     from_port = 0
@@ -109,7 +102,6 @@ resource "aws_security_group" "node_group" {
 }
 
 resource "aws_security_group_rule" "cluster_ingress_nodes" {
-  description              = "Allow cluster API server to communicate with node groups"
   from_port                = 443
   to_port                  = 443
   protocol                 = "tcp"
@@ -153,9 +145,9 @@ resource "aws_eks_node_group" "main" {
   disk_size      = each.value.disk_size
 
   scaling_config {
-    desired_size = 3  # Changed from 2 to 3
+    desired_size = 3
     min_size     = 1
-    max_size     = 4  # Changed from 3 to 4
+    max_size     = 4
   }
 
   update_config {
@@ -197,8 +189,7 @@ resource "aws_iam_role" "aws_load_balancer_controller" {
 }
 
 resource "aws_iam_policy" "aws_load_balancer_controller" {
-  name        = "${var.cluster_name}-AWSLoadBalancerControllerIAMPolicy"
-  description = "IAM policy for AWS Load Balancer Controller"
+  name = "${var.cluster_name}-AWSLoadBalancerControllerIAMPolicy"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -370,7 +361,6 @@ resource "aws_iam_openid_connect_provider" "cluster" {
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = [data.tls_certificate.cluster.certificates[0].sha1_fingerprint]
   url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
-
   tags = var.tags
 }
 
