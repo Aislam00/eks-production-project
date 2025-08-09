@@ -132,6 +132,17 @@ resource "aws_eks_cluster" "main" {
   tags = var.tags
 }
 
+data "tls_certificate" "cluster" {
+  url = aws_eks_cluster.main.identity[0].oidc[0].issuer
+}
+
+resource "aws_iam_openid_connect_provider" "cluster" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.cluster.certificates[0].sha1_fingerprint]
+  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
+  tags            = var.tags
+}
+
 resource "aws_eks_node_group" "main" {
   for_each = var.node_groups
 
@@ -145,9 +156,9 @@ resource "aws_eks_node_group" "main" {
   disk_size      = each.value.disk_size
 
   scaling_config {
-    desired_size = 3
-    min_size     = 1
-    max_size     = 4
+    desired_size = each.value.scaling_config.desired_size
+    min_size     = each.value.scaling_config.min_size
+    max_size     = each.value.scaling_config.max_size
   }
 
   update_config {
@@ -170,10 +181,10 @@ resource "aws_iam_role" "aws_load_balancer_controller" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action = "sts:AssumeRole"
+        Action = "sts:AssumeRoleWithWebIdentity"
         Effect = "Allow"
         Principal = {
-          Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://", "")}"
+          Federated = aws_iam_openid_connect_provider.cluster.arn
         }
         Condition = {
           StringEquals = {
@@ -251,36 +262,21 @@ resource "aws_iam_policy" "aws_load_balancer_controller" {
         Effect = "Allow"
         Action = [
           "ec2:CreateSecurityGroup",
-          "ec2:CreateTags"
+          "ec2:CreateTags",
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:DeleteSecurityGroup"
         ]
-        Resource = "arn:aws:ec2:*:*:security-group/*"
-        Condition = {
-          StringEquals = {
-            "ec2:CreateAction" = "CreateSecurityGroup"
-          }
-          Null = {
-            "aws:RequestedRegion" = "false"
-          }
-        }
+        Resource = "*"
       },
       {
         Effect = "Allow"
         Action = [
           "elasticloadbalancing:CreateLoadBalancer",
-          "elasticloadbalancing:CreateTargetGroup"
-        ]
-        Resource = "*"
-        Condition = {
-          Null = {
-            "aws:RequestedRegion" = "false"
-          }
-        }
-      },
-      {
-        Effect = "Allow"
-        Action = [
+          "elasticloadbalancing:CreateTargetGroup",
           "elasticloadbalancing:CreateListener",
           "elasticloadbalancing:DeleteListener",
+          "elasticloadbalancing:ModifyListener",
           "elasticloadbalancing:CreateRule",
           "elasticloadbalancing:DeleteRule"
         ]
@@ -295,14 +291,12 @@ resource "aws_iam_policy" "aws_load_balancer_controller" {
         Resource = [
           "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
           "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
-          "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
+          "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*",
+          "arn:aws:elasticloadbalancing:*:*:listener/net/*/*",
+          "arn:aws:elasticloadbalancing:*:*:listener/app/*/*",
+          "arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*",
+          "arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*"
         ]
-        Condition = {
-          Null = {
-            "aws:RequestedRegion" = "false"
-            "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
-          }
-        }
       },
       {
         Effect = "Allow"
@@ -317,11 +311,6 @@ resource "aws_iam_policy" "aws_load_balancer_controller" {
           "elasticloadbalancing:DeleteTargetGroup"
         ]
         Resource = "*"
-        Condition = {
-          Null = {
-            "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
-          }
-        }
       },
       {
         Effect = "Allow"
@@ -330,19 +319,6 @@ resource "aws_iam_policy" "aws_load_balancer_controller" {
           "elasticloadbalancing:DeregisterTargets"
         ]
         Resource = "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ec2:CreateTags"
-        ]
-        Resource = "arn:aws:ec2:*:*:security-group/*"
-        Condition = {
-          StringEquals = {
-            "ec2:CreateAction" = "CreateTags"
-            "aws:RequestedRegion" = data.aws_region.current.id
-          }
-        }
       }
     ]
   })
@@ -353,15 +329,16 @@ resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller" {
   role       = aws_iam_role.aws_load_balancer_controller.name
 }
 
-data "tls_certificate" "cluster" {
-  url = aws_eks_cluster.main.identity[0].oidc[0].issuer
-}
+resource "kubernetes_service_account" "aws_load_balancer_controller" {
+  metadata {
+    name      = "aws-load-balancer-controller"
+    namespace = "kube-system"
+    annotations = {
+      "eks.amazonaws.com/role-arn" = aws_iam_role.aws_load_balancer_controller.arn
+    }
+  }
 
-resource "aws_iam_openid_connect_provider" "cluster" {
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.cluster.certificates[0].sha1_fingerprint]
-  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
-  tags = var.tags
+  depends_on = [aws_eks_node_group.main]
 }
 
 resource "helm_release" "aws_load_balancer_controller" {
@@ -386,23 +363,9 @@ resource "helm_release" "aws_load_balancer_controller" {
     value = "aws-load-balancer-controller"
   }
 
-  set {
-    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = aws_iam_role.aws_load_balancer_controller.arn
-  }
-
   depends_on = [
     aws_eks_node_group.main,
+    aws_iam_role_policy_attachment.aws_load_balancer_controller,
     kubernetes_service_account.aws_load_balancer_controller
   ]
-}
-
-resource "kubernetes_service_account" "aws_load_balancer_controller" {
-  metadata {
-    name      = "aws-load-balancer-controller"
-    namespace = "kube-system"
-    annotations = {
-      "eks.amazonaws.com/role-arn" = aws_iam_role.aws_load_balancer_controller.arn
-    }
-  }
 }

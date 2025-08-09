@@ -1,6 +1,5 @@
 resource "aws_iam_role" "external_dns" {
   name = "${var.cluster_name}-external-dns"
-
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -19,14 +18,12 @@ resource "aws_iam_role" "external_dns" {
       }
     ]
   })
-
   tags = var.tags
 }
 
 resource "aws_iam_role_policy" "external_dns" {
   name = "${var.cluster_name}-external-dns-policy"
   role = aws_iam_role.external_dns.id
-
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -49,4 +46,35 @@ resource "aws_iam_role_policy" "external_dns" {
       }
     ]
   })
+}
+
+resource "helm_release" "external_dns" {
+  name       = "external-dns"
+  repository = "https://kubernetes-sigs.github.io/external-dns/"
+  chart      = "external-dns"
+  version    = "1.13.1"
+  namespace  = "kube-system"
+
+  values = [
+    yamlencode({
+      serviceAccount = {
+        create = true
+        name   = "external-dns"
+        annotations = {
+          "eks.amazonaws.com/role-arn" = aws_iam_role.external_dns.arn
+        }
+      }
+      provider = "aws"
+      aws = {
+        zoneType = "public"
+      }
+      domainFilters = [var.domain_name]
+      sources       = ["ingress"]
+      registry      = "txt"
+      txtOwnerId    = var.cluster_name
+      logLevel      = "info"
+    })
+  ]
+
+  depends_on = [aws_iam_role_policy.external_dns]
 }

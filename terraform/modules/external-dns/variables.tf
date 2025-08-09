@@ -1,20 +1,30 @@
 variable "cluster_name" {
-  type = string
+  description = "Name of the EKS cluster"
+  type        = string
 }
 
 variable "route53_zone_id" {
-  type = string
+  description = "Route53 hosted zone ID"
+  type        = string
 }
 
 variable "oidc_provider_arn" {
-  type = string
+  description = "ARN of the OIDC provider"
+  type        = string
 }
 
 variable "oidc_provider" {
-  type = string
+  description = "OIDC provider URL without https://"
+  type        = string
+}
+
+variable "domain_name" {
+  description = "Domain name for external DNS"
+  type        = string
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags to apply to resources"
+  type        = map(string)
+  default     = {}
 }
