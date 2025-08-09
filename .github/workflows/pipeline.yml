@@ -78,13 +78,7 @@ jobs:
         with:
           image-ref: '${{ env.ECR_REPOSITORY }}:${{ github.sha }}'
           format: 'table'
-          output: 'trivy-results.txt'
-      
-      - name: Upload Trivy Scan Results
-        uses: actions/upload-artifact@v3
-        with:
-          name: trivy-scan-results
-          path: trivy-results.txt
+          exit-code: '0'
       
       - name: Push to ECR
         env:
