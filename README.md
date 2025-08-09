@@ -1,168 +1,95 @@
 # EKS Production Project
 
-A production-grade Kubernetes platform deployed on AWS EKS, demonstrating enterprise DevOps practices with infrastructure as code, GitOps automation, and comprehensive monitoring. This project implements a fully automated, scalable platform hosting the Pastefy application with real-world production features including SSL termination, monitoring, and CI/CD workflows.
+A production-grade Kubernetes environment on AWS running a paste-sharing application (Pastefy) with complete CI/CD pipelines, monitoring, and security practices.
+
+**Live application**: https://eks.integratepro.online
+
+Additional interfaces:
+- Grafana: https://grafana.integratepro.online  
+- Prometheus: https://prometheus.integratepro.online  
+- ArgoCD: https://argocd.integratepro.online  
 
 ## Overview
 
-This project sets up a cloud-native paste sharing application on a production-grade Kubernetes cluster running on Amazon Elastic Kubernetes Service (EKS). It uses Terraform to handle the entire infrastructure on AWS, and GitHub Actions powers a reliable CI/CD pipeline. An Amazon Elastic Container Registry (ECR) is created for managing Docker images, and the NGINX Ingress Controller manages global traffic securely and efficiently—including HTTPS support. The setup is designed for scalability, security, and smooth performance. It includes Cert-Manager for automatic SSL certificates, ExternalDNS for real-time DNS updates, ArgoCD for GitOps-based deployment, and Prometheus & Grafana for full-stack monitoring and visibility.
+This project implements a complete AWS production environment for hosting a code snippet sharing application. The infrastructure uses Kubernetes (EKS) for container orchestration, Terraform for infrastructure management, and GitHub Actions for automated deployment workflows.
 
-## End-to-End Architecture Diagram
+The system automatically builds, tests, and deploys code changes through a GitOps workflow, ensuring consistent and reliable deployments.
 
-![Infrastructure Architecture](screenshots/Infrustructure-architecture-diagram.png)
+## Technology Stack
 
-## 🌐 Live Demonstration
+**AWS Infrastructure:**
+- EKS for managed Kubernetes cluster
+- ECR for container image storage
+- Route53 for DNS management
+- ACM for SSL certificate management
 
-**Production Environment:**
-- **Application**: https://eks.integratepro.online
-- **Monitoring**: https://grafana.integratepro.online  
-- **Metrics**: https://prometheus.integratepro.online
-- **GitOps**: https://argocd.integratepro.online
+**Application Stack:**
+- Pastefy (Node.js/Java application)
+- MariaDB (database)
+- Prometheus (metrics collection)
+- Grafana (monitoring dashboards)
+- ArgoCD (GitOps deployment)
 
-*Note: Infrastructure is deployed on-demand to optimize operational costs.*
+**CI/CD Pipeline:**
+- GitHub Actions for automation
+- Trivy for security scanning
+- Docker for containerization
 
-## Key Components
+## Deployment
 
-| Component | Description |
-|-----------|-------------|
-| **Amazon EKS** | Hosts the production-grade Kubernetes cluster that runs the Pastefy application |
-| **Amazon ECR** | Stores and manages Docker images securely, used by the EKS cluster for application deployments |
-| **GitHub Actions (CI/CD)** | Automates testing, building, security scanning, and deployment of infrastructure and application code |
-| **Terraform** | Manages and provisions all infrastructure components using Infrastructure as Code (IaC) practices |
-| **ArgoCD** | Implements GitOps to continuously synchronize Kubernetes manifests from the Git repository to EKS |
-| **NGINX Ingress Controller** | Manages HTTP/HTTPS traffic routing inside the cluster and supports SSL termination |
-| **Cert-Manager** | Automatically issues and renews SSL certificates using Let's Encrypt for secure HTTPS access |
-| **ExternalDNS** | Updates Route53 DNS records dynamically based on Kubernetes Ingress resources |
-| **Prometheus** | Collects and stores metrics for the cluster, application, and infrastructure monitoring |
-| **Grafana** | Visualizes metrics from Prometheus and provides dashboards for real-time observability |
-| **Trivy** | Performs container image vulnerability scanning as part of the CI workflow |
-| **Checkov** | Scans Terraform code for misconfigurations and compliance issues in infrastructure definitions |
-
-## Project Structure
-
-![Project Structure](screenshots/Directory-structure.png)
-
-The codebase maintains clear separation between infrastructure definitions, Kubernetes manifests, application source code, and CI/CD configurations. Terraform modules provide reusable infrastructure components while k8s-manifests contain deployment specifications.
-
-## Deployment to AWS
-
-This project automates the deployment of the Pastefy application to AWS using a modern GitOps-driven workflow built on EKS, Terraform, and GitHub Actions. The deployment process includes the following stages:
-
-### 1. Dockerization
-The application is containerized using the Dockerfile located in the `app/` directory. This ensures consistency across development, staging, and production environments.
-
-### 2. Building and Pushing the Docker Image
-When code changes are pushed to the main branch, the GitHub Actions workflow is triggered. It builds the Docker image, runs security vulnerability scans, and pushes the image to Amazon ECR.
-
-### 3. Infrastructure Validation
-GitHub Actions workflows execute:
-- `terraform plan` to preview infrastructure changes
-- Security scanning with Checkov for compliance issues
-- YAML validation for Kubernetes manifests
-
-### 4. Infrastructure Provisioning
-Once approved and merged, Terraform provisions or updates infrastructure on AWS, including ECR, EKS, networking, and DNS components.
-
-### 5. GitOps Deployment via ArgoCD
-ArgoCD continuously watches the Git repository (under `k8s-manifests/`) and automatically syncs Kubernetes manifests to the EKS cluster. This ensures that the live environment always reflects the desired state stored in Git.
-
-### 6. Ingress, SSL, and DNS Setup
-- **NGINX Ingress Controller** handles HTTPS routing within the EKS cluster
-- **Cert-Manager** automatically issues and renews SSL certificates via Let's Encrypt
-- **ExternalDNS** syncs Kubernetes ingress records with Route53, enabling real-time domain mapping
-
-### 7. Monitoring and Observability
-Prometheus collects metrics from the cluster and workloads. Grafana dashboards provide real-time insights into application and infrastructure health.
-
-## 📸 Pastefy App: Live on AWS with GitOps, Monitoring, and CI/CD
-
-### ✅ ArgoCD: GitOps Deployment to EKS
-Pastefy is continuously deployed to EKS using ArgoCD. All Kubernetes manifests are stored in Git (`k8s-manifests/`), and ArgoCD keeps the EKS cluster in sync with the Git source of truth.
-
-![ArgoCD GitOps Dashboard](screenshots/argocd-dashboard.png)
-
-### ✅ Prometheus & Grafana: Full-Stack Observability
-Prometheus scrapes metrics from the EKS cluster, workloads, and system components. Grafana provides real-time dashboards and alerting for system health, resource usage, and application performance.
-
-**Prometheus Interface:**
-![Prometheus Interface](screenshots/prometheus-interface.png)
-
-**Grafana Monitoring Dashboard:**
-![Grafana Dashboard](screenshots/grafana-dashboard.png)
-
-### ✅ CI/CD Pipeline via GitHub Actions
-Every change to the codebase or infrastructure triggers GitHub Actions workflows that run Docker builds, security scans, Terraform validation, and apply changes automatically upon merge.
-
-![GitHub Actions Pipeline](screenshots/github-actions-pipelines.png)
-
-### ✅ Route53 DNS Configuration
-The Pastefy application and monitoring tools are publicly accessible via custom subdomains managed in Route53.
-
-DNS records are automatically configured to point to the AWS Load Balancer endpoints for the following services:
-- `eks.integratepro.online` → Pastefy application
-- `grafana.integratepro.online` → Grafana dashboards  
-- `prometheus.integratepro.online` → Prometheus monitoring UI
-- `argocd.integratepro.online` → ArgoCD GitOps interface
-
-This setup enables:
-- Clean, branded, and user-friendly URLs
-- Real-time DNS resolution via ExternalDNS
-- Secure HTTPS access via certificates provisioned by Cert-Manager
-
-## Prerequisites
-
-- AWS CLI configured with appropriate IAM permissions
-- Terraform >= 1.0 installed
-- kubectl command-line tool
-- Docker for container operations
-
-## Quick Start
-
-### 1. Backend Setup (one-time)
+Initialize the Terraform backend:
 ```bash
 cd terraform/backend-setup
-terraform init
-terraform apply
+terraform init && terraform apply
 ```
 
-### 2. Deploy Infrastructure
+Deploy the infrastructure:
 ```bash
-cd terraform/environments/dev
-terraform init
-terraform apply
+cd terraform/environments/dev  
+terraform init && terraform apply
 ```
 
-### 3. Configure kubectl
+Configure kubectl access:
 ```bash
 aws eks update-kubeconfig --name eks-production-dev-cluster --region eu-west-2
 ```
 
-### 4. Deploy Applications
+Deploy applications:
 ```bash
-kubectl apply -f k8s-manifests/
+kubectl apply -f k8s-manifests/pastefy/
+kubectl apply -f k8s-manifests/monitoring/
+kubectl apply -f k8s-manifests/argocd/
 ```
 
-## Cost Analysis
+## Architecture
 
-**Monthly operational costs (approximate):**
-- EKS Control Plane: ~$70
-- Worker Node Instances: ~$45  
-- Application Load Balancer: ~$18
-- Persistent Storage: ~$5
-- **Total: ~$140/month**
+![Infrastructure Architecture](screenshots/Infrustructure-architecture-diagram.png)
 
-Infrastructure is provisioned on-demand for development to optimize operational expenses.
+![Project Structure](screenshots/Directory-structure.png)
 
-## Technology Stack
+## Application Screenshots
 
-Built leveraging:
-- **Pastefy** - Open source paste sharing application
-- **AWS EKS** - Managed Kubernetes service
-- **Terraform** - Infrastructure as code
-- **ArgoCD** - GitOps continuous delivery
-- **Prometheus/Grafana** - Monitoring and observability
-- **NGINX Ingress** - Traffic routing and SSL termination
-- **Cert-Manager** - Automated certificate management
+Production application:
+![Pastefy Application](screenshots/pastefy-app.png)
 
----
+CI/CD pipeline execution:
+![GitHub Actions Pipeline](screenshots/github-actions-pipelines.png)
 
-This project demonstrates practical implementation of modern DevOps methodologies and cloud-native technologies in a production-ready environment.
+Monitoring dashboard:
+![Grafana Dashboard](screenshots/grafana-dashboard.png)
+
+Metrics collection:
+![Prometheus Interface](screenshots/prometheus-interface.png)
+
+GitOps deployment management:
+![ArgoCD Dashboard](screenshots/argocd-dashboard.png)
+
+## Key Features
+
+- End-to-end HTTPS with automated certificate management
+- GitOps-based deployment workflow
+- Comprehensive monitoring and alerting
+- Automated security scanning in CI pipeline
+- Cost-optimized infrastructure (spot instances, single NAT gateway)
+
+This project showcases the type of infrastructure and automation practices used in production environments.
