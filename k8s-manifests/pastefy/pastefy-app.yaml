@@ -1,3 +1,21 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    name: production
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pastefy-secrets
+  namespace: production
+type: Opaque
+data:
+  mysql-password: cGFzdGVmeQ==
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,27 +35,35 @@ spec:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
-        prometheus.io/port: "80"
+        prometheus.io/port: "1337"
     spec:
       containers:
       - name: pastefy
-        image: interaapps/pastefy:latest
+        image: 475641479654.dkr.ecr.eu-west-2.amazonaws.com/pastefy-app:latest
         ports:
-        - containerPort: 80
+        - containerPort: 1337
         env:
-        - name: DB_HOST
+        - name: HTTP_SERVER_PORT
+          value: "1337"
+        - name: HTTP_SERVER_CORS
+          value: "*"
+        - name: DATABASE_DRIVER
+          value: mysql
+        - name: DATABASE_HOST
           value: pastefy-mariadb
-        - name: DB_PORT
+        - name: DATABASE_PORT
           value: "3306"
-        - name: DB_NAME
+        - name: DATABASE_NAME
           value: pastefy
-        - name: DB_USER
+        - name: DATABASE_USER
           value: pastefy
-        - name: DB_PASSWORD
+        - name: DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:
               name: pastefy-secrets
               key: mysql-password
+        - name: SERVER_NAME
+          value: "https://eks.integratepro.online"
         resources:
           requests:
             memory: "512Mi"
@@ -48,19 +74,19 @@ spec:
         livenessProbe:
           httpGet:
             path: /
-            port: 80
+            port: 1337
           initialDelaySeconds: 90
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /
-            port: 80
+            port: 1337
           initialDelaySeconds: 60
           periodSeconds: 5
         startupProbe:
           httpGet:
             path: /
-            port: 80
+            port: 1337
           initialDelaySeconds: 30
           periodSeconds: 10
           failureThreshold: 18
@@ -79,7 +105,7 @@ spec:
     app: pastefy-app
   ports:
   - port: 80
-    targetPort: 80
+    targetPort: 1337
 
 ---
 apiVersion: networking.k8s.io/v1
@@ -88,17 +114,13 @@ metadata:
   name: pastefy-ingress
   namespace: production
   annotations:
-    kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/ssl-redirect: '443'
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-west-2:475641479654:certificate/b86bd892-ce79-46da-9215-b7046dfcdb58
 spec:
-  tls:
-  - hosts:
-    - eks.integratepro.online
-    secretName: pastefy-tls
+  ingressClassName: alb
   rules:
   - host: eks.integratepro.online
     http:

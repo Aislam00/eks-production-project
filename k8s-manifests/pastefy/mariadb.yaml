@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pastefy-mariadb
+  namespace: production
+  labels:
+    app: pastefy-mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pastefy-mariadb
+  template:
+    metadata:
+      labels:
+        app: pastefy-mariadb
+    spec:
+      containers:
+      - name: mariadb
+        image: mariadb:10.11
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: pastefy
+        - name: MYSQL_DATABASE
+          value: pastefy
+        - name: MYSQL_USER
+          value: pastefy
+        - name: MYSQL_PASSWORD
+          value: pastefy
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-storage
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pastefy-mariadb
+  namespace: production
+  labels:
+    app: pastefy-mariadb
+spec:
+  selector:
+    app: pastefy-mariadb
+  ports:
+  - port: 3306
+    targetPort: 3306
+  type: ClusterIP
