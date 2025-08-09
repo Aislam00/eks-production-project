@@ -7,11 +7,11 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/ssl-redirect: '443'
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-west-2:475641479654:certificate/e6850f93-82ef-4e8d-8f05-f44de363daf0
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-west-2:475641479654:certificate/b86bd892-ce79-46da-9215-b7046dfcdb58
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
-  ingressClassName: alb
 spec:
+  ingressClassName: alb  # <-- Moved this from metadata to spec
   rules:
   - host: argocd.integratepro.online
     http:
@@ -39,7 +39,7 @@ metadata:
   namespace: argocd
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:eu-west-2:475641479654:certificate/e6850f93-82ef-4e8d-8f05-f44de363daf0
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:eu-west-2:475641479654:certificate/b86bd892-ce79-46da-9215-b7046dfcdb58
     service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
     service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
 spec:

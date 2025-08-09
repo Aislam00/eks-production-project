@@ -1,95 +1,141 @@
 # EKS Production Project
+Complete Kubernetes setup on AWS with automated deployments and monitoring.
 
-A production-grade Kubernetes environment on AWS running a paste-sharing application (Pastefy) with complete CI/CD pipelines, monitoring, and security practices.
+## Table of Contents
+- [What I Built](#what-i-built)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Live Application](#live-application)
+- [Pipeline in Action](#pipeline-in-action)
+- [Monitoring & Operations](#monitoring--operations)
+- [Key Features](#key-features)
+- [Getting Started](#getting-started)
+- [How to Use](#how-to-use)
 
-**Live application**: https://eks.integratepro.online
+## What I Built
+This is a production Kubernetes environment running on AWS that hosts a code-sharing app called Pastefy. The whole thing is automated - when code changes are pushed, it builds, tests, scans for security issues, and deploys automatically.
 
-Additional interfaces:
-- Grafana: https://grafana.integratepro.online  
-- Prometheus: https://prometheus.integratepro.online  
-- ArgoCD: https://argocd.integratepro.online  
+Built to demonstrate and practice real DevOps practices used in enterprise environments.
 
-## Overview
+**Live site:** https://eks.integratepro.online  
+**Monitoring:** https://grafana.integratepro.online  
+**GitOps dashboard:** https://argocd.integratepro.online
 
-This project implements a complete AWS production environment for hosting a code snippet sharing application. The infrastructure uses Kubernetes (EKS) for container orchestration, Terraform for infrastructure management, and GitHub Actions for automated deployment workflows.
+## Tech Stack
+- **Cloud:** AWS EKS, Route53, ECR
+- **Infrastructure:** Terraform for everything
+- **App:** Pastefy (Node.js/Java) with MariaDB
+- **Automation:** GitHub Actions + ArgoCD
+- **Monitoring:** Prometheus + Grafana
+- **Security:** Trivy container scanning
 
-The system automatically builds, tests, and deploys code changes through a GitOps workflow, ensuring consistent and reliable deployments.
+## Architecture
+The infrastructure runs on AWS with everything defined in Terraform. ArgoCD watches the Git repo and automatically deploys changes.
 
-## Technology Stack
+**AWS Infrastructure**
+![Infrastructure](screenshots/Infrustructure-architecture-diagram.png)
 
-**AWS Infrastructure:**
-- EKS for managed Kubernetes cluster
-- ECR for container image storage
-- Route53 for DNS management
-- ACM for SSL certificate management
+**Project Structure**
+![Terraform Structure](screenshots/Directory-structure.png)
 
-**Application Stack:**
-- Pastefy (Node.js/Java application)
-- MariaDB (database)
-- Prometheus (metrics collection)
-- Grafana (monitoring dashboards)
-- ArgoCD (GitOps deployment)
+## Live Application
 
-**CI/CD Pipeline:**
-- GitHub Actions for automation
-- Trivy for security scanning
-- Docker for containerization
+**The actual app running**
+![Pastefy app](screenshots/pastefy-app.png)
 
-## Deployment
+## Pipeline in Action
 
-Initialize the Terraform backend:
+**Terraform validation**
+![Terraform check](screenshots/Terraform-validation.png)
+
+**Docker build with security scan**
+![Security scanning](screenshots/Docker-trivy.png)
+
+**Deploy to Kubernetes**
+![K8s deployment](screenshots/eks-deployment.png)
+
+## Monitoring & Operations
+
+**Grafana monitoring**
+![Monitoring dashboard](screenshots/grafana-dashboard.png)
+
+**Prometheus metrics**
+![Metrics](screenshots/prometheus-interface.png)
+
+**ArgoCD managing deployments**
+![GitOps](screenshots/argocd-dashboard.png)
+
+## Key Features
+- **Custom domain setup** - Running on my own domain with automated DNS
+- **Complete automation** - Git commits trigger the entire deployment pipeline
+- **Security first** - Container vulnerability scanning on every build
+- **Production monitoring** - Real dashboards and metrics collection
+- **HTTPS everywhere** - Automatic SSL certificates for all services
+- **GitOps workflow** - All deployments managed through Git, no manual steps
+- **Cost optimized** - Smart resource allocation and spot instances
+
+## Getting Started
+
+You'll need:
+- AWS account with CLI configured
+- Terraform installed
+- kubectl and Docker
+
 ```bash
+# Get the code
+git clone https://github.com/Aislam00/eks-production-project.git
+cd eks-production-project
+
+# Set up the backend first
 cd terraform/backend-setup
-terraform init && terraform apply
-```
+terraform init
+terraform apply
 
-Deploy the infrastructure:
-```bash
-cd terraform/environments/dev  
-terraform init && terraform apply
-```
+# Build the infrastructure  
+cd ../environments/dev
+terraform init
+terraform apply
 
-Configure kubectl access:
-```bash
+# Connect to the cluster
 aws eks update-kubeconfig --name eks-production-dev-cluster --region eu-west-2
 ```
 
-Deploy applications:
+## How to Use
+
+Once everything's deployed:
+
 ```bash
+# Deploy the apps
 kubectl apply -f k8s-manifests/pastefy/
 kubectl apply -f k8s-manifests/monitoring/
 kubectl apply -f k8s-manifests/argocd/
+
+# Check what's running
+kubectl get pods -n production
+
+# Scale the app
+kubectl scale deployment pastefy-app -n production --replicas=3
+
+# Watch logs
+kubectl logs -f deployment/pastefy-app -n production
 ```
 
-## Architecture
+Any changes you make to files in `k8s-manifests/` get automatically deployed by ArgoCD.
 
-![Infrastructure Architecture](screenshots/Infrustructure-architecture-diagram.png)
+## Notes
 
-![Project Structure](screenshots/Directory-structure.png)
+This project demonstrates real DevOps practices used in production environments. The infrastructure is designed to be cost-effective while maintaining production standards and scalability.
 
-## Application Screenshots
+The monitoring stack provides full visibility into system performance, and the GitOps approach ensures all changes are tracked and auditable.
 
-Production application:
-![Pastefy Application](screenshots/pastefy-app.png)
+## Contributing
 
-CI/CD pipeline execution:
-![GitHub Actions Pipeline](screenshots/github-actions-pipelines.png)
+Feel free to fork this project and adapt it for your own use cases! Some ideas for enhancements:
 
-Monitoring dashboard:
-![Grafana Dashboard](screenshots/grafana-dashboard.png)
+- Add additional applications to the cluster
+- Implement blue-green deployments
+- Add alerting rules to Prometheus
+- Set up log aggregation with ELK stack
+- Experiment with different ingress controllers
 
-Metrics collection:
-![Prometheus Interface](screenshots/prometheus-interface.png)
-
-GitOps deployment management:
-![ArgoCD Dashboard](screenshots/argocd-dashboard.png)
-
-## Key Features
-
-- End-to-end HTTPS with automated certificate management
-- GitOps-based deployment workflow
-- Comprehensive monitoring and alerting
-- Automated security scanning in CI pipeline
-- Cost-optimized infrastructure (spot instances, single NAT gateway)
-
-This project showcases the type of infrastructure and automation practices used in production environments.
+Happy to discuss any questions or improvements! 🚀 ⚡
