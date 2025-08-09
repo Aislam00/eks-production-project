@@ -69,6 +69,7 @@ jobs:
       
       - name: Build Docker Image
         run: |
+          cd app
           docker build -t $ECR_REPOSITORY:$GITHUB_SHA .
           docker tag $ECR_REPOSITORY:$GITHUB_SHA $ECR_REPOSITORY:latest
       
@@ -76,8 +77,14 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ env.ECR_REPOSITORY }}:${{ github.sha }}'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          format: 'table'
+          output: 'trivy-results.txt'
+      
+      - name: Upload Trivy Scan Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-scan-results
+          path: trivy-results.txt
       
       - name: Push to ECR
         env:
