@@ -1,141 +1,122 @@
-# EKS Production Project
-Complete Kubernetes setup on AWS with automated deployments and monitoring.
+# EKS Production Platform
 
-## Table of Contents
-- [What I Built](#what-i-built)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Live Application](#live-application)
-- [Pipeline in Action](#pipeline-in-action)
-- [Monitoring & Operations](#monitoring--operations)
-- [Key Features](#key-features)
-- [Getting Started](#getting-started)
-- [How to Use](#how-to-use)
+**Tech Stack:** Terraform, AWS EKS, GitHub Actions, ArgoCD, Prometheus/Grafana, Docker
 
-## What I Built
-This is a production Kubernetes environment running on AWS that hosts a code-sharing app called Pastefy. The whole thing is automated - when code changes are pushed, it builds, tests, scans for security issues, and deploys automatically.
+A production-ready Kubernetes platform on AWS demonstrating enterprise DevOps practices with automated CI/CD, monitoring, and GitOps deployment.
 
-Built to demonstrate and practice real DevOps practices used in enterprise environments.
-
-**Live site:** https://eks.integratepro.online  
+**Live Application:** https://eks.integratepro.online  
 **Monitoring:** https://grafana.integratepro.online  
-**GitOps dashboard:** https://argocd.integratepro.online
+**GitOps:** https://argocd.integratepro.online
 
-## Tech Stack
-- **Cloud:** AWS EKS, Route53, ECR
-- **Infrastructure:** Terraform for everything
-- **App:** Pastefy (Node.js/Java) with MariaDB
-- **Automation:** GitHub Actions + ArgoCD
-- **Monitoring:** Prometheus + Grafana
-- **Security:** Trivy container scanning
+## Author
+
+**Alamin Islam**  
+💼 LinkedIn: [linkedin.com/in/alamin-islam-58a635300](https://www.linkedin.com/in/alamin-islam-58a635300)  
+🌐 Portfolio: [github.com/Aislam00](https://github.com/Aislam00)
+
+## What it does
+
+This project runs Pastefy (a code-sharing application) on AWS EKS with complete automation. When code is pushed, it automatically builds, scans for security vulnerabilities, and deploys using GitOps. The platform includes production monitoring and follows enterprise security practices.
+
+Built to demonstrate real-world Kubernetes operations at scale.
 
 ## Architecture
-The infrastructure runs on AWS with everything defined in Terraform. ArgoCD watches the Git repo and automatically deploys changes.
 
-**AWS Infrastructure**
 ![Infrastructure](screenshots/Infrustructure-architecture-diagram.png)
 
-**Project Structure**
-![Terraform Structure](screenshots/Directory-structure.png)
+**Key Components:**
+- **EKS Cluster** - Kubernetes v1.28 with private worker nodes
+- **Application Load Balancer** - SSL termination and traffic distribution
+- **ArgoCD** - GitOps continuous deployment automation
+- **Prometheus/Grafana** - Comprehensive monitoring and alerting
+- **MariaDB** - Database backend for Pastefy application
 
 ## Live Application
 
-**The actual app running**
-![Pastefy app](screenshots/pastefy-app.png)
+![Pastefy Application](screenshots/pastefy-app.png)
 
-## Pipeline in Action
+The deployed Pastefy application running on the EKS cluster with full SSL encryption and custom domain configuration.
 
-**Terraform validation**
-![Terraform check](screenshots/Terraform-validation.png)
+## Security Features
 
-**Docker build with security scan**
-![Security scanning](screenshots/Docker-trivy.png)
+![Security Scanning](screenshots/Docker-trivy.png)
 
-**Deploy to Kubernetes**
-![K8s deployment](screenshots/eks-deployment.png)
+Production-ready security measures:
+- **Container vulnerability scanning** - Trivy scans every Docker image build
+- **Private networking** - Worker nodes in private subnets with NAT gateway access
+- **IAM least privilege** - Service accounts with minimal required permissions
+- **HTTPS everywhere** - Automatic SSL certificates with Let's Encrypt
+- **Network policies** - Pod-to-pod communication controls
 
-## Monitoring & Operations
+## CI/CD Pipeline
 
-**Grafana monitoring**
-![Monitoring dashboard](screenshots/grafana-dashboard.png)
+![Pipeline Validation](screenshots/Terraform-validation.png)
 
-**Prometheus metrics**
-![Metrics](screenshots/prometheus-interface.png)
+The pipeline runs three stages:
 
-**ArgoCD managing deployments**
-![GitOps](screenshots/argocd-dashboard.png)
+**Validation Stage** - Terraform configuration validation and Kubernetes manifest checks
 
-## Key Features
-- **Custom domain setup** - Running on my own domain with automated DNS
-- **Complete automation** - Git commits trigger the entire deployment pipeline
-- **Security first** - Container vulnerability scanning on every build
-- **Production monitoring** - Real dashboards and metrics collection
-- **HTTPS everywhere** - Automatic SSL certificates for all services
-- **GitOps workflow** - All deployments managed through Git, no manual steps
-- **Cost optimized** - Smart resource allocation and spot instances
+**Security Stage** - Trivy vulnerability scanning and security policy validation
 
-## Getting Started
+**GitOps Deployment** - ArgoCD automatically syncs changes from Git to cluster
 
-You'll need:
-- AWS account with CLI configured
-- Terraform installed
-- kubectl and Docker
+Pipeline triggers on every push but requires manual infrastructure changes for proper review processes.
 
+## How to deploy
+
+Deploy the Terraform backend:
 ```bash
-# Get the code
-git clone https://github.com/Aislam00/eks-production-project.git
-cd eks-production-project
-
-# Set up the backend first
 cd terraform/backend-setup
-terraform init
-terraform apply
+terraform init && terraform apply
+```
 
-# Build the infrastructure  
+Deploy the main infrastructure:
+```bash
 cd ../environments/dev
-terraform init
-terraform apply
+terraform init && terraform apply
+```
 
-# Connect to the cluster
+Connect to the cluster:
+```bash
 aws eks update-kubeconfig --name eks-production-dev-cluster --region eu-west-2
 ```
 
-## How to Use
+The ArgoCD GitOps workflow handles all application deployments automatically.
 
-Once everything's deployed:
+## Monitoring & Operations
 
-```bash
-# Deploy the apps
-kubectl apply -f k8s-manifests/pastefy/
-kubectl apply -f k8s-manifests/monitoring/
-kubectl apply -f k8s-manifests/argocd/
+### Grafana Dashboard
+![Grafana Monitoring](screenshots/grafana-dashboard.png)
 
-# Check what's running
-kubectl get pods -n production
+### Prometheus Metrics
+![Prometheus Interface](screenshots/prometheus-interface.png)
 
-# Scale the app
-kubectl scale deployment pastefy-app -n production --replicas=3
+### GitOps Management
+![ArgoCD Dashboard](screenshots/argocd-dashboard.png)
 
-# Watch logs
-kubectl logs -f deployment/pastefy-app -n production
-```
+## What I Learned
 
-Any changes you make to files in `k8s-manifests/` get automatically deployed by ArgoCD.
+**Kubernetes Operations:** Production cluster management, auto-scaling, and resource optimization with spot instances.
 
-## Notes
+**GitOps Workflow:** Implementing declarative deployments with ArgoCD and maintaining infrastructure as code.
 
-This project demonstrates real DevOps practices used in production environments. The infrastructure is designed to be cost-effective while maintaining production standards and scalability.
+**Production Monitoring:** Setting up comprehensive observability with Prometheus, Grafana, and AlertManager.
 
-The monitoring stack provides full visibility into system performance, and the GitOps approach ensures all changes are tracked and auditable.
+**Cloud Security:** Container scanning, network policies, and implementing defense-in-depth strategies.
 
-## Contributing
+## Possible Next Implementations
 
-Feel free to fork this project and adapt it for your own use cases! Some ideas for enhancements:
+- Multi-region EKS deployment for high availability
+- Advanced monitoring with distributed tracing
+- Blue-green deployment strategies with Flagger
+- Integration with AWS Security Hub for compliance
 
-- Add additional applications to the cluster
-- Implement blue-green deployments
-- Add alerting rules to Prometheus
-- Set up log aggregation with ELK stack
-- Experiment with different ingress controllers
+## License
 
-Happy to discuss any questions or improvements! 🚀 ⚡
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+**Tech Stack:** Terraform, AWS EKS, GitHub Actions, ArgoCD, Prometheus/Grafana  
+**Live Platform:** https://eks.integratepro.online  
+**Portfolio:** [github.com/Aislam00](https://github.com/Aislam00)
