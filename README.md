@@ -20,9 +20,30 @@ This project runs Pastefy (a code-sharing application) on AWS EKS with complete 
 
 Built to demonstrate real-world Kubernetes operations at scale.
 
+## How to deploy
+
+Deploy the Terraform backend:
+```bash
+cd terraform/backend-setup
+terraform init && terraform apply
+```
+
+Deploy the main infrastructure:
+```bash
+cd ../environments/dev
+terraform init && terraform apply
+```
+
+Connect to the cluster:
+```bash
+aws eks update-kubeconfig --name eks-production-dev-cluster --region eu-west-2
+```
+
+The ArgoCD GitOps workflow handles all application deployments automatically.
+
 ## Architecture
 
-![Infrastructure](screenshots/Infrustructure-architecture-diagram.png)
+![Infrastructure](screenshots/arc-diagram.png)
 
 **Key Components:**
 - **EKS Cluster** - Kubernetes v1.28 with private worker nodes
@@ -30,6 +51,12 @@ Built to demonstrate real-world Kubernetes operations at scale.
 - **ArgoCD** - GitOps continuous deployment automation
 - **Prometheus/Grafana** - Comprehensive monitoring and alerting
 - **MariaDB** - Database backend for Pastefy application
+
+## Project Structure
+
+![Directory Structure](screenshots/Directory-structure.png)
+
+Terraform modules organized for reusability and environment separation.
 
 ## Live Application
 
@@ -39,7 +66,7 @@ The deployed Pastefy application running on the EKS cluster with full SSL encryp
 
 ## Security Features
 
-![Security Scanning](screenshots/Docker-trivy.png)
+![Security Scanning](screenshots/Docker-trivy,png .png)
 
 Production-ready security measures:
 - **Container vulnerability scanning** - Trivy scans every Docker image build
@@ -62,26 +89,11 @@ The pipeline runs three stages:
 
 Pipeline triggers on every push but requires manual infrastructure changes for proper review processes.
 
-## How to deploy
+## Deployment in Action
 
-Deploy the Terraform backend:
-```bash
-cd terraform/backend-setup
-terraform init && terraform apply
-```
+![EKS Deployment](screenshots/eks-deployment.png)
 
-Deploy the main infrastructure:
-```bash
-cd ../environments/dev
-terraform init && terraform apply
-```
-
-Connect to the cluster:
-```bash
-aws eks update-kubeconfig --name eks-production-dev-cluster --region eu-west-2
-```
-
-The ArgoCD GitOps workflow handles all application deployments automatically.
+Kubernetes deployment process showing pods being created and scaled across the cluster.
 
 ## Monitoring & Operations
 
@@ -94,29 +106,6 @@ The ArgoCD GitOps workflow handles all application deployments automatically.
 ### GitOps Management
 ![ArgoCD Dashboard](screenshots/argocd-dashboard.png)
 
-## What I Learned
+## Project Overview
 
-**Kubernetes Operations:** Production cluster management, auto-scaling, and resource optimization with spot instances.
-
-**GitOps Workflow:** Implementing declarative deployments with ArgoCD and maintaining infrastructure as code.
-
-**Production Monitoring:** Setting up comprehensive observability with Prometheus, Grafana, and AlertManager.
-
-**Cloud Security:** Container scanning, network policies, and implementing defense-in-depth strategies.
-
-## Possible Next Implementations
-
-- Multi-region EKS deployment for high availability
-- Advanced monitoring with distributed tracing
-- Blue-green deployment strategies with Flagger
-- Integration with AWS Security Hub for compliance
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-**Tech Stack:** Terraform, AWS EKS, GitHub Actions, ArgoCD, Prometheus/Grafana  
-**Live Platform:** https://eks.integratepro.online  
-**Portfolio:** [github.com/Aislam00](https://github.com/Aislam00)
+This is a full end-to-end project demonstrating enterprise-grade DevOps practices including infrastructure as code, container orchestration, GitOps deployment, security scanning, and production monitoring. The platform showcases real-world Kubernetes operations at scale with automated CI/CD pipelines and comprehensive observability.
