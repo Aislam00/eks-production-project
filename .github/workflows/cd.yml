@@ -34,7 +34,8 @@ jobs:
       
       - name: Deploy to Kubernetes
         run: |
-          kubectl apply -f k8s-manifests/pastefy/
+          kubectl apply -f k8s-manifests/pastefy/pastefy-app.yaml
+          kubectl apply -f k8s-manifests/pastefy/mariadb.yaml
       
       - name: Wait for deployment
         run: |
