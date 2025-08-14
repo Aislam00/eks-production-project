@@ -1,24 +1,24 @@
 variable "cluster_name" {
-  type        = string
+  type = string
 }
 
 variable "route53_zone_id" {
-  type        = string
+  type = string
 }
 
 variable "oidc_provider_arn" {
-  type        = string
+  type = string
 }
 
 variable "oidc_provider" {
-  type        = string
+  type = string
 }
 
 variable "domain_name" {
-  type        = string
+  type = string
 }
 
 variable "tags" {
-  type        = map(string)
-  default     = {}
+  type    = map(string)
+  default = {}
 }
