@@ -50,10 +50,6 @@ data:
       scrape_interval: 15s
       evaluation_interval: 15s
 
-    rule_files:
-      - "first_rules.yml"
-      - "second_rules.yml"
-
     scrape_configs:
       - job_name: 'prometheus'
         static_configs:
@@ -124,9 +120,22 @@ spec:
         app: prometheus
     spec:
       serviceAccountName: prometheus
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
       containers:
       - name: prometheus
         image: prom/prometheus:v2.45.0
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
         args:
           - '--config.file=/etc/prometheus/prometheus.yml'
           - '--storage.tsdb.path=/prometheus/'
@@ -148,13 +157,32 @@ spec:
           mountPath: /etc/prometheus/
         - name: prometheus-storage-volume
           mountPath: /prometheus/
+        - name: tmp-volume
+          mountPath: /tmp
       volumes:
       - name: prometheus-config-volume
         configMap:
           defaultMode: 420
           name: prometheus-config
       - name: prometheus-storage-volume
+        persistentVolumeClaim:
+          claimName: prometheus-pvc
+      - name: tmp-volume
         emptyDir: {}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-pvc
+  namespace: monitoring
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: gp2
 
 ---
 apiVersion: v1

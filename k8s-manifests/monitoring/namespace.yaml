@@ -4,3 +4,13 @@ metadata:
   name: monitoring
   labels:
     name: monitoring
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-admin-secret
+  namespace: monitoring
+type: Opaque
+data:
+  admin-password: U2VjdXJlUGFzc3dvcmQxMjM=

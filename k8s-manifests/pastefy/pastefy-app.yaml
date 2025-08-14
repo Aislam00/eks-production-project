@@ -13,7 +13,18 @@ metadata:
   namespace: production
 type: Opaque
 data:
-  mysql-password: cGFzdGVmeQ==
+  mysql-password: U3Ryb25nUGFzc3dvcmQxMjM=
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mariadb-secrets
+  namespace: production
+type: Opaque
+data:
+  mysql-root-password: Um9vdFBhc3N3b3JkMTIz
+  mysql-password: U3Ryb25nUGFzc3dvcmQxMjM=
 
 ---
 apiVersion: apps/v1
@@ -37,16 +48,29 @@ spec:
         prometheus.io/path: "/metrics"
         prometheus.io/port: "1337"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
       containers:
       - name: pastefy
         image: 475641479654.dkr.ecr.eu-west-2.amazonaws.com/pastefy-app:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 1337
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001
+          capabilities:
+            drop:
+            - ALL
         env:
         - name: HTTP_SERVER_PORT
           value: "1337"
         - name: HTTP_SERVER_CORS
-          value: "*"
+          value: "https://eks.integratepro.online"
         - name: DATABASE_DRIVER
           value: mysql
         - name: DATABASE_HOST
@@ -90,6 +114,12 @@ spec:
           initialDelaySeconds: 30
           periodSeconds: 10
           failureThreshold: 18
+        volumeMounts:
+        - name: tmp-volume
+          mountPath: /tmp
+      volumes:
+      - name: tmp-volume
+        emptyDir: {}
 
 ---
 apiVersion: v1
