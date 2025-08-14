@@ -11,7 +11,7 @@ metadata:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
 spec:
-  ingressClassName: alb  # <-- Moved this from metadata to spec
+  ingressClassName: alb
   rules:
   - host: argocd.integratepro.online
     http:

@@ -1,0 +1,42 @@
+name: CD
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+env:
+  AWS_REGION: eu-west-2
+  EKS_CLUSTER_NAME: eks-production-dev-cluster
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
+      
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s-manifests/pastefy/
+      
+      - name: Wait for deployment
+        run: |
+          kubectl rollout status deployment/pastefy-app -n production --timeout=300s
+          kubectl get pods -n production
