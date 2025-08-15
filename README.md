@@ -43,7 +43,7 @@ ArgoCD handles application deployments automatically.
 
 ## Platform Architecture
 
-![Infrastructure](screenshots/arc-diagram.png)
+![Infrastructure](screenshots/ARCEKS-.PNG)
 
 **Core Components:**
 - **EKS Cluster** - Kubernetes v1.28 with worker nodes in private subnets
