@@ -1,5 +1,5 @@
 output "cluster_id" {
-  value = aws_eks_cluster.main.cluster_id
+  value = aws_eks_cluster.main.name
 }
 
 output "cluster_arn" {
@@ -44,10 +44,6 @@ output "cluster_iam_role_arn" {
 
 output "node_groups" {
   value = aws_eks_node_group.main
-}
-
-output "aws_load_balancer_controller_role_arn" {
-  value = aws_iam_role.aws_load_balancer_controller.arn
 }
 
 output "oidc_provider_arn" {

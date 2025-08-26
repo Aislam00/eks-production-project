@@ -1,32 +1,3 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: production
-  labels:
-    name: production
-
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: pastefy-secrets
-  namespace: production
-type: Opaque
-data:
-  mysql-password: U3Ryb25nUGFzc3dvcmQxMjM=
-
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mariadb-secrets
-  namespace: production
-type: Opaque
-data:
-  mysql-root-password: Um9vdFBhc3N3b3JkMTIz
-  mysql-password: U3Ryb25nUGFzc3dvcmQxMjM=
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -34,8 +5,14 @@ metadata:
   namespace: production
   labels:
     app: pastefy-app
+    version: v1
 spec:
-  replicas: 2
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: pastefy-app
@@ -43,34 +20,70 @@ spec:
     metadata:
       labels:
         app: pastefy-app
+        version: v1
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
         prometheus.io/port: "1337"
     spec:
+      initContainers:
+      - name: wait-for-db
+        image: busybox:1.35.0
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1001
+          runAsGroup: 1001
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        command: 
+        - /bin/sh
+        - -c
+        - |
+          echo "Waiting for MariaDB to be ready..."
+          until nc -z pastefy-mariadb 3306; do
+            echo "MariaDB not ready, waiting 5 seconds..."
+            sleep 5
+          done
+          echo "MariaDB is ready!"
+        resources:
+          requests:
+            memory: "16Mi"
+            cpu: "10m"
+          limits:
+            memory: "32Mi"
+            cpu: "50m"
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
+        runAsGroup: 1001
         fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: pastefy
         image: 475641479654.dkr.ecr.eu-west-2.amazonaws.com/pastefy-app:latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 1337
+        - name: http
+          containerPort: 1337
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
           runAsUser: 1001
+          runAsGroup: 1001
           capabilities:
-            drop:
-            - ALL
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
         env:
         - name: HTTP_SERVER_PORT
           value: "1337"
-        - name: HTTP_SERVER_CORS
-          value: "https://eks.integratepro.online"
         - name: DATABASE_DRIVER
           value: mysql
         - name: DATABASE_HOST
@@ -90,37 +103,50 @@ spec:
           value: "https://eks.integratepro.online"
         resources:
           requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
             memory: "512Mi"
             cpu: "300m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
         livenessProbe:
           httpGet:
             path: /
-            port: 1337
-          initialDelaySeconds: 90
-          periodSeconds: 10
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /
-            port: 1337
-          initialDelaySeconds: 60
-          periodSeconds: 5
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
         startupProbe:
           httpGet:
             path: /
-            port: 1337
-          initialDelaySeconds: 30
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 10
           periodSeconds: 10
+          timeoutSeconds: 3
           failureThreshold: 18
         volumeMounts:
         - name: tmp-volume
           mountPath: /tmp
+        - name: cache-volume
+          mountPath: /app/cache
       volumes:
       - name: tmp-volume
-        emptyDir: {}
-
+        emptyDir:
+          sizeLimit: 100Mi
+      - name: cache-volume
+        emptyDir:
+          sizeLimit: 200Mi
 ---
 apiVersion: v1
 kind: Service
@@ -134,35 +160,10 @@ spec:
   selector:
     app: pastefy-app
   ports:
-  - port: 80
-    targetPort: 1337
-
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: pastefy-ingress
-  namespace: production
-  annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-west-2:475641479654:certificate/b86bd892-ce79-46da-9215-b7046dfcdb58
-spec:
-  ingressClassName: alb
-  rules:
-  - host: eks.integratepro.online
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: pastefy-app
-            port:
-              number: 80
-
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -174,8 +175,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: pastefy-app
-  minReplicas: 2
-  maxReplicas: 10
+  minReplicas: 1
+  maxReplicas: 5
   metrics:
   - type: Resource
     resource:
@@ -183,3 +184,20 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pastefy-pdb
+  namespace: production
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app: pastefy-app

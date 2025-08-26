@@ -3,7 +3,6 @@ kind: ServiceAccount
 metadata:
   name: prometheus
   namespace: monitoring
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -11,19 +10,11 @@ metadata:
   name: prometheus
 rules:
 - apiGroups: [""]
-  resources:
-  - nodes
-  - nodes/proxy
-  - services
-  - endpoints
-  - pods
-  verbs: ["get", "list", "watch"]
-- apiGroups:
-  - extensions
-  resources:
-  - ingresses
-  verbs: ["get", "list", "watch"]
-
+  resources: ["nodes","nodes/proxy","services","endpoints","pods"]
+  verbs: ["get","list","watch"]
+- apiGroups: ["extensions"]
+  resources: ["ingresses"]
+  verbs: ["get","list","watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -37,7 +28,6 @@ subjects:
 - kind: ServiceAccount
   name: prometheus
   namespace: monitoring
-
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -49,41 +39,10 @@ data:
     global:
       scrape_interval: 15s
       evaluation_interval: 15s
-
     scrape_configs:
       - job_name: 'prometheus'
         static_configs:
           - targets: ['localhost:9090']
-
-      - job_name: 'kubernetes-apiservers'
-        kubernetes_sd_configs:
-        - role: endpoints
-        scheme: https
-        tls_config:
-          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-        relabel_configs:
-        - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
-          action: keep
-          regex: default;kubernetes;https
-
-      - job_name: 'kubernetes-nodes'
-        kubernetes_sd_configs:
-        - role: node
-        scheme: https
-        tls_config:
-          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-        relabel_configs:
-        - action: labelmap
-          regex: __meta_kubernetes_node_label_(.+)
-        - target_label: __address__
-          replacement: kubernetes.default.svc:443
-        - source_labels: [__meta_kubernetes_node_name]
-          regex: (.+)
-          target_label: __metrics_path__
-          replacement: /api/v1/nodes/${1}/proxy/metrics
-
       - job_name: 'pastefy-app'
         kubernetes_sd_configs:
         - role: pod
@@ -100,7 +59,6 @@ data:
           regex: ([^:]+)(?::\d+)?;(\d+)
           replacement: $1:$2
           target_label: __address__
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -123,19 +81,24 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
+        runAsGroup: 65534
         fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: prometheus
-        image: prom/prometheus:v2.45.0
-        imagePullPolicy: Always
+        image: prom/prometheus:v2.50.0
+        imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
           runAsUser: 65534
+          runAsGroup: 65534
           capabilities:
-            drop:
-            - ALL
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
         args:
           - '--config.file=/etc/prometheus/prometheus.yml'
           - '--storage.tsdb.path=/prometheus/'
@@ -148,10 +111,10 @@ spec:
         resources:
           requests:
             cpu: 200m
-            memory: 1000Mi
+            memory: 512Mi
           limits:
             cpu: 1000m
-            memory: 2000Mi
+            memory: 1Gi
         volumeMounts:
         - name: prometheus-config-volume
           mountPath: /etc/prometheus/
@@ -168,8 +131,8 @@ spec:
         persistentVolumeClaim:
           claimName: prometheus-pvc
       - name: tmp-volume
-        emptyDir: {}
-
+        emptyDir:
+          sizeLimit: 1Gi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -182,8 +145,7 @@ spec:
   resources:
     requests:
       storage: 20Gi
-  storageClassName: gp2
-
+  storageClassName: gp3
 ---
 apiVersion: v1
 kind: Service

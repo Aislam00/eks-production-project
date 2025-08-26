@@ -19,11 +19,6 @@ output "cluster_endpoint" {
   sensitive = true
 }
 
-output "cluster_certificate_authority_data" {
-  value     = module.eks.cluster_certificate_authority_data
-  sensitive = true
-}
-
 output "oidc_provider_arn" {
   value = module.eks.oidc_provider_arn
 }
@@ -40,7 +35,10 @@ output "route53_zone_id" {
   value = aws_route53_zone.main.zone_id
 }
 
+output "route53_nameservers" {
+  value = aws_route53_zone.main.name_servers
+}
 
-output "acm_certificate_arn" {
-  value = aws_acm_certificate_validation.eks_cert.certificate_arn
+output "external_dns_role_arn" {
+  value = aws_iam_role.external_dns.arn
 }

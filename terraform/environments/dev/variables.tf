@@ -53,16 +53,6 @@ variable "vpc_cidr" {
   default = "10.0.0.0/16"
 }
 
-variable "availability_zones" {
-  type    = list(string)
-  default = ["eu-west-2a", "eu-west-2b", "eu-west-2c"]
-}
-
-variable "single_nat_gateway" {
-  type    = bool
-  default = true
-}
-
 variable "public_subnet_count" {
   type    = number
   default = 2

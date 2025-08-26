@@ -5,8 +5,11 @@ metadata:
   namespace: production
   labels:
     app: pastefy-mariadb
+    version: v1
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: pastefy-mariadb
@@ -14,21 +17,30 @@ spec:
     metadata:
       labels:
         app: pastefy-mariadb
+        version: v1
+      annotations:
+        prometheus.io/scrape: "false"
     spec:
       securityContext:
-        runAsNonRoot: true
         runAsUser: 999
+        runAsGroup: 999
         fsGroup: 999
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: mariadb
-        image: mariadb:10.11
-        imagePullPolicy: Always
+        image: mariadb:10.11.8
+        imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 3306
+        - name: mysql
+          containerPort: 3306
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
-          runAsNonRoot: true
           runAsUser: 999
+          runAsNonRoot: true
+          readOnlyRootFilesystem: false
           capabilities:
             drop:
             - ALL
@@ -52,49 +64,62 @@ spec:
             secretKeyRef:
               name: mariadb-secrets
               key: mysql-password
+        - name: MYSQL_INNODB_BUFFER_POOL_SIZE
+          value: "128M"
         resources:
           requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
             memory: "512Mi"
             cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
         livenessProbe:
           tcpSocket:
-            port: 3306
+            port: mysql
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           exec:
             command:
-            - mysqladmin
-            - ping
-            - -h
-            - localhost
-          initialDelaySeconds: 5
-          periodSeconds: 2
+            - /bin/bash
+            - -c
+            - "mysql -h 127.0.0.1 -u$MYSQL_USER -p$MYSQL_PASSWORD -e 'SELECT 1'"
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
         volumeMounts:
         - name: mysql-storage
           mountPath: /var/lib/mysql
+        - name: tmp-volume
+          mountPath: /tmp
+        - name: run-volume
+          mountPath: /var/run/mysqld
       volumes:
       - name: mysql-storage
         persistentVolumeClaim:
           claimName: mysql-pvc
-
+      - name: tmp-volume
+        emptyDir: {}
+      - name: run-volume
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: mysql-pvc
   namespace: production
+  labels:
+    app: pastefy-mariadb
 spec:
   accessModes:
   - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
-  storageClassName: gp2
-
+      storage: 20Gi
+  storageClassName: gp3
 ---
 apiVersion: v1
 kind: Service
@@ -107,6 +132,19 @@ spec:
   selector:
     app: pastefy-mariadb
   ports:
-  - port: 3306
-    targetPort: 3306
+  - name: mysql
+    port: 3306
+    targetPort: mysql
+    protocol: TCP
   type: ClusterIP
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mariadb-pdb
+  namespace: production
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app: pastefy-mariadb

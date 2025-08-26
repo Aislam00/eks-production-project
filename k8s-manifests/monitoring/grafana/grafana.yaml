@@ -1,3 +1,22 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: grafana-admin-secret
+  namespace: monitoring
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: SecretStore
+  target:
+    name: grafana-admin-secret
+    creationPolicy: Owner
+  data:
+  - secretKey: admin-password
+    remoteRef:
+      key: eks-production/grafana
+      property: admin-password
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -19,7 +38,6 @@ data:
             }
         ]
     }
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -40,27 +58,33 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 472
+        runAsGroup: 472
         fsGroup: 472
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: grafana
-        image: grafana/grafana:10.0.0
-        imagePullPolicy: Always
+        image: grafana/grafana:10.4.0
+        imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true
           runAsUser: 472
+          runAsGroup: 472
+          readOnlyRootFilesystem: true
           capabilities:
-            drop:
-            - ALL
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
         ports:
         - name: grafana
           containerPort: 3000
         resources:
           limits:
             memory: "1Gi"
-            cpu: "1000m"
+            cpu: "500m"
           requests:
-            memory: "500Mi"
+            memory: "256Mi"
             cpu: "100m"
         volumeMounts:
           - mountPath: /var/lib/grafana
@@ -68,6 +92,8 @@ spec:
           - mountPath: /etc/grafana/provisioning/datasources
             name: grafana-datasources
             readOnly: false
+          - mountPath: /tmp
+            name: tmp-volume
         env:
         - name: GF_SECURITY_ADMIN_USER
           value: admin
@@ -92,7 +118,9 @@ spec:
           configMap:
               defaultMode: 420
               name: grafana-datasources
-
+        - name: tmp-volume
+          emptyDir:
+            sizeLimit: 100Mi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -105,8 +133,7 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: gp2
-
+  storageClassName: gp3
 ---
 apiVersion: v1
 kind: Service
