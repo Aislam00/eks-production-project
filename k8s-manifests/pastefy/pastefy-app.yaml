@@ -26,6 +26,7 @@ spec:
         prometheus.io/path: "/metrics"
         prometheus.io/port: "1337"
     spec:
+      serviceAccountName: pastefy-app
       initContainers:
       - name: wait-for-db
         image: busybox:1.35.0

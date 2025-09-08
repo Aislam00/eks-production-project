@@ -2,6 +2,26 @@ name: CD
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod
+      deploy_infrastructure:
+        description: 'Deploy infrastructure changes'
+        required: true
+        default: true
+        type: boolean
+      deploy_application:
+        description: 'Deploy application'
+        required: true
+        default: true
+        type: boolean
   workflow_run:
     workflows: ["CI"]
     types: [completed]
@@ -9,14 +29,56 @@ on:
 
 env:
   AWS_REGION: eu-west-2
-  EKS_CLUSTER_NAME: eks-production-dev-cluster
+  ECR_REPOSITORY: pastefy-app
 
 jobs:
-  deploy:
-    name: Deploy
+  infrastructure:
+    name: Deploy Infrastructure
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
-    environment: production
+    if: (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch') && (github.event.inputs.deploy_infrastructure == 'true' || github.event_name == 'workflow_run')
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    outputs:
+      cluster_name: ${{ steps.terraform.outputs.cluster_name }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.0.0
+          terraform_wrapper: false
+      
+      - name: Terraform Init
+        run: |
+          cd terraform/environments/${{ github.event.inputs.environment || 'dev' }}
+          terraform init
+      
+      - name: Terraform Plan
+        run: |
+          cd terraform/environments/${{ github.event.inputs.environment || 'dev' }}
+          terraform plan -out=tfplan
+      
+      - name: Terraform Apply
+        id: terraform
+        run: |
+          cd terraform/environments/${{ github.event.inputs.environment || 'dev' }}
+          terraform apply tfplan
+          echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
+
+  application:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    needs: infrastructure
+    if: always() && (needs.infrastructure.result == 'success' || needs.infrastructure.result == 'skipped') && (github.event.inputs.deploy_application == 'true' || github.event_name == 'workflow_run')
+    environment: ${{ github.event.inputs.environment || 'dev' }}
     
     steps:
       - uses: actions/checkout@v4
@@ -30,14 +92,31 @@ jobs:
       
       - name: Update kubeconfig
         run: |
-          aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
+          CLUSTER_NAME="${{ needs.infrastructure.outputs.cluster_name || format('eks-production-{0}-cluster', github.event.inputs.environment || 'dev') }}"
+          aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
       
-      - name: Deploy to Kubernetes
+      - name: Deploy Core Resources
         run: |
-          kubectl apply -f k8s-manifests/pastefy/pastefy-app.yaml
-          kubectl apply -f k8s-manifests/pastefy/mariadb.yaml
+          kubectl apply -f k8s-manifests/core/
+      
+      - name: Deploy Infrastructure Components
+        run: |
+          kubectl apply -f k8s-manifests/infrastructure/
+      
+      - name: Deploy Application
+        run: |
+          kubectl apply -f k8s-manifests/pastefy/
+      
+      - name: Deploy Monitoring
+        run: |
+          kubectl apply -f k8s-manifests/monitoring/
+      
+      - name: Deploy Ingress
+        run: |
+          kubectl apply -f k8s-manifests/ingress/
       
       - name: Wait for deployment
         run: |
-          kubectl rollout status deployment/pastefy-app -n production --timeout=300s
+          kubectl rollout status deployment/pastefy-app -n production --timeout=600s
           kubectl get pods -n production
+          kubectl get ingress -n production
